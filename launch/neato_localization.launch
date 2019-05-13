@@ -1,0 +1,11 @@
+<!-- 
+ -->
+
+<launch>
+<node pkg="neato_localization" type="tracking_aruco_markers.py" name="tracking_aruco_markers">
+</node>
+<node pkg="neato_localization" type="localizing_tracked_markers.py" name="localizing_tracked_markers" output="screen">
+</node>
+
+</launch>
+
