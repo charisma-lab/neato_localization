@@ -41,19 +41,29 @@ class Marker():
 		# print("distance_in_pixels: {} \t distance_in_meters: {}".format(distance_in_pixels, distance_in_meters))
 		angle_transform = calculate_ang_deviation((ref_x, ref_y), (x, y))
 		orientation = calculate_ang_deviation((self._marker_points[0], self._marker_points[1]), (self._marker_points[-2], self._marker_points[-1]))
-		if self._marker_points[0] >= self._marker_points[-2]:
-			orientation -= delta_angle
+		new_x = (distance_in_meters*math.cos(angle_transform))
+		new_y = (distance_in_meters*math.sin(angle_transform))
+		if self._marker_points[1] <= self._marker_points[-1]:
+			if self._marker_points[0] >= self._marker_points[-2]:
+				orientation -= delta_angle
+			else:
+				orientation = 1*orientation + np.pi
+				orientation += delta_angle
 		else:
-			orientation = -1*orientation
-			orientation += delta_angle
-		# orientation = math.degrees(orientation)
-		self._marker_pose = [(distance_in_meters*math.cos(angle_transform), distance_in_meters*math.sin(angle_transform), orientation)]
+			if self._marker_points[0] >= self._marker_points[-2]:
+				orientation += delta_angle
+			else:
+				orientation = 1*orientation - np.pi
+				orientation -= delta_angle
+		orientation = math.degrees(orientation)
+		self._marker_pose = (new_x, new_y, orientation)
+		self.publish_pose()
 
 	def publish_pose(self):
 		pose = Twist()
-		pose.pose.x = self._marker_pose[0]
-		pose.pose.y = self._marker_pose[1]
-		pose.orientation.w = self._marker_pose[3]
+		pose.linear.x = self._marker_pose[0]
+		pose.linear.y = self._marker_pose[1]
+		pose.angular.z = self._marker_pose[2]
 		self._pub_pose.publish(pose)
 
 	def get_pose(self):
@@ -107,12 +117,15 @@ def tracked_marker_callback(marker):
 	all_neato_robots.create_marker(marker)
 
 if __name__ == "__main__":
+	rospy.init_node('localize_and_find_pose', anonymous=True)
 	global all_neato_robots
 	all_neato_robots = All_markers()
-	rospy.init_node('find_neato_pose', anonymous=True)
 	rospy.Subscriber("/tracked_all_markers", NumPoints, tracked_marker_callback)
 	r = rospy.Rate(20)
+	start_time = time.time()
 	while not rospy.is_shutdown():
 		all_neato_robots.estimate_robot_pose()
-		print(all_neato_robots.get_all_robot_poses())
+		if time.time() - start_time > 2:
+			pass
+			# print(all_neato_robots.get_all_robot_poses())
 		r.sleep()

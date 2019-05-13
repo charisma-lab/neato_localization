@@ -14,7 +14,6 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Vector3
 from neato_localization.msg import NumPoints
 
-import time
 from std_msgs.msg import UInt16
 from sensor_msgs.msg import Joy
 
@@ -39,14 +38,18 @@ class Tracker():
 		self._cap = cv2.VideoCapture(VIDEO_SOURCE_ID)
 		self._dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)	
 		self._font = cv2.FONT_HERSHEY_SIMPLEX
+		rospy.Subscriber("/neato1/pose", Twist, self.tracked_neato1, queue_size=10)
+		rospy.Subscriber("/neato2/pose", Twist, self.tracked_neato2, queue_size=10)
 		cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 		cv2.resizeWindow('frame', 1280, 720)
+		self._start_time = time.time()
 
 	def track_every_frame(self):
 		ret, frame = self._cap.read()
 		colored_frame = frame
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		parameters =  aruco.DetectorParameters_create()
+		font = cv2.FONT_HERSHEY_SIMPLEX
 
 		self._detected_markers_in_this_frame = aruco.detectMarkers(colored_frame, self._dictionary, parameters=parameters)
 		corners, ids, rejectedImgPoints = self._detected_markers_in_this_frame
@@ -63,6 +66,11 @@ class Tracker():
 							points_list.extend(list(point))
 						marker.points = points_list
 						tracking_all_markers.publish(marker)
+						if time.time() - self._start_time > 2:
+							if index_number == 1:
+								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato1_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
+							if index_number == 2:
+								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato1_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
 					except IndexError:
 						pass
 
@@ -75,6 +83,12 @@ class Tracker():
 			cv2.destroyAllWindows()
 			sys.exit()
 
+	def tracked_neato1(self, m):
+		self._neato1_pose = (round(m.linear.x, 2), round(m.linear.y, 2), round((m.angular.z), 2))
+		
+	def tracked_neato2(self, m):
+		self._neato2_pose = (round(m.linear.x, 2), round(m.linear.y, 2), round((m.angular.z), 2))
+
 
 if __name__ == "__main__":
 	rospy.init_node('track_aruco_markers', anonymous=True)
@@ -82,5 +96,3 @@ if __name__ == "__main__":
 	watch_dogs = Tracker()
 	while (True):
 		watch_dogs.track_every_frame()
-
-	rospy.init_node('track_aruco_markers', anonymous=True)
