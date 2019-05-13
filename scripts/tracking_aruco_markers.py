@@ -70,7 +70,7 @@ class Tracker():
 							if index_number == 1:
 								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato1_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
 							if index_number == 2:
-								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato1_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
+								cv2.putText(frame, "Neato: " + str(2) + " " + str(self._neato2_pose), (0,128), font, 1, (100,0,200),2,cv2.LINE_AA)
 					except IndexError:
 						pass
 
