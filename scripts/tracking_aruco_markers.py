@@ -5,7 +5,8 @@
 import roslib
 import rospy
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Pose, Point, Quaternion
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 import sys, select, termios, tty
 
@@ -38,8 +39,7 @@ class Tracker():
 		self._cap = cv2.VideoCapture(VIDEO_SOURCE_ID)
 		self._dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)	
 		self._font = cv2.FONT_HERSHEY_SIMPLEX
-		rospy.Subscriber("/neato1/pose", Twist, self.tracked_neato1, queue_size=10)
-		rospy.Subscriber("/neato2/pose", Twist, self.tracked_neato2, queue_size=10)
+		rospy.Subscriber("/neato01/pose", Pose, self.tracked_neato01, queue_size=10)
 		cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 		cv2.resizeWindow('frame', 1280, 720)
 		self._start_time = time.time()
@@ -68,9 +68,7 @@ class Tracker():
 						tracking_all_markers.publish(marker)
 						if time.time() - self._start_time > 2:
 							if index_number == 1:
-								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato1_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
-							if index_number == 2:
-								cv2.putText(frame, "Neato: " + str(2) + " " + str(self._neato2_pose), (0,128), font, 1, (100,0,200),2,cv2.LINE_AA)
+								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato01_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
 					except IndexError:
 						pass
 
@@ -83,11 +81,8 @@ class Tracker():
 			cv2.destroyAllWindows()
 			sys.exit()
 
-	def tracked_neato1(self, m):
-		self._neato1_pose = (round(m.linear.x, 2), round(m.linear.y, 2), round((m.angular.z), 2))
-		
-	def tracked_neato2(self, m):
-		self._neato2_pose = (round(m.linear.x, 2), round(m.linear.y, 2), round((m.angular.z), 2))
+	def tracked_neato01(self, m):
+		self._neato01_pose = (round(m.position.x, 2), round(m.position.y, 2), round((euler_from_quaternion([m.orientation.x, m.orientation.y, m.orientation.z, m.orientation.w]))[-1], 2))
 
 
 if __name__ == "__main__":
