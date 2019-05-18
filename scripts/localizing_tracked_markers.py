@@ -12,11 +12,13 @@ from std_msgs.msg import String
 from neato_localization.msg import NumPoints
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
+
 PIXEL_TO_WORLD_RATIO = 3.50
 DISTANCE_CONSTANT_LONG = 3.50
 DISTANCE_CONSTANT_CORNERS = .21
 MAP_WIDTH = 2.50
 REFERENCE_IDS = [0, 10]
+
 
 class Marker():
 	def __init__(self, marker):
@@ -76,6 +78,7 @@ class Marker():
 	def get_corner(self, index):
 		return (self._marker_points[index*2], self._marker_points[index*2 + 1])
 
+
 class All_markers():
 	def __init__(self):
 		self._number_of_markers_detected = 0
@@ -120,6 +123,7 @@ class All_markers():
 				new_ref = self._markers[REFERENCE_IDS[0]].get_corner(0)
 				each_marker.update_pose((int(new_ref[0] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*cos(self._angle_deviation)), int(new_ref[1] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*sin(self._angle_deviation))), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
 
+
 def calculate_euc_distance((x0, y0), (x1, y1)):
 	return math.sqrt((x0-x1)*(x0-x1) + (y0-y1)*(y0-y1))
 
@@ -130,6 +134,7 @@ def calculate_ang_deviation((x0, y0), (x1, y1)):
 
 def tracked_marker_callback(marker):
 	all_neato_robots.create_marker(marker)
+
 
 if __name__ == "__main__":
 	rospy.init_node('localize_and_find_pose', anonymous=True)
