@@ -5,7 +5,7 @@
 import roslib
 import rospy
 
-from geometry_msgs.msg import Twist, Pose, Point, Quaternion
+from geometry_msgs.msg import Twist, Pose, PoseStamped, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 import sys, select, termios, tty
@@ -39,7 +39,7 @@ class Tracker():
 		self._cap = cv2.VideoCapture(VIDEO_SOURCE_ID)
 		self._dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)	
 		self._font = cv2.FONT_HERSHEY_SIMPLEX
-		rospy.Subscriber("/neato01/pose", Pose, self.tracked_neato01, queue_size=10)
+		rospy.Subscriber("/neato01/pose", PoseStamped, self.tracked_neato01, queue_size=10)
 		cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 		cv2.resizeWindow('frame', 1280, 720)
 		self._start_time = time.time()
@@ -82,7 +82,7 @@ class Tracker():
 			sys.exit()
 
 	def tracked_neato01(self, m):
-		self._neato01_pose = (round(m.position.x, 2), round(m.position.y, 2), round((euler_from_quaternion([m.orientation.x, m.orientation.y, m.orientation.z, m.orientation.w]))[-1], 2))
+		self._neato01_pose = (round(m.pose.position.x, 2), round(m.pose.position.y, 2), round(((euler_from_quaternion([m.pose.orientation.x, m.pose.orientation.y, m.pose.orientation.z, m.pose.orientation.w]))[-1])*180/np.pi, 2))
 
 
 if __name__ == "__main__":

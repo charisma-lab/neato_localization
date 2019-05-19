@@ -7,7 +7,7 @@ import rospy
 import numpy as np
 import time, math
 
-from geometry_msgs.msg import Twist, Pose, Point, Quaternion
+from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
 from neato_localization.msg import NumPoints
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -26,9 +26,9 @@ class Marker():
 		# four corners -> [x0,y0,x1,y1,x2,y2,x3,y3,x4,y4]
 		self._marker_points = marker.points
 		if marker.id < 10:
-			self._pub_pose = rospy.Publisher("/neato0"+str(self._marker_id)+"/pose", Pose, queue_size=10)
+			self._pub_pose = rospy.Publisher("/neato0"+str(self._marker_id)+"/pose", PoseStamped, queue_size=10)
 		else:
-			self._pub_pose = rospy.Publisher("/neato"+str(self._marker_id)+"/pose", Pose, queue_size=10)
+			self._pub_pose = rospy.Publisher("/neato"+str(self._marker_id)+"/pose", PoseStamped, queue_size=10)
 
 	def update_pixels(self, marker):
 		self._marker_points = marker.points
@@ -66,11 +66,13 @@ class Marker():
 		self.publish_pose()
 
 	def publish_pose(self):
-		pose = Pose()
-		pose.position.x = self._marker_pose[0]
-		pose.position.y = self._marker_pose[1]
-		pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self._marker_pose[2]))
-		self._pub_pose.publish(pose)
+		pose_stamped = PoseStamped()
+		pose_stamped.header.frame_id = 'map'
+		pose_stamped.header.stamp = rospy.Time.now()
+		pose_stamped.pose.position.x = self._marker_pose[0]
+		pose_stamped.pose.position.y = self._marker_pose[1]
+		pose_stamped.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self._marker_pose[2]))
+		self._pub_pose.publish(pose_stamped)
 
 	def get_pose(self):
 		return self._marker_pose
@@ -108,20 +110,21 @@ class All_markers():
 			self._angle_deviation = calculate_ang_deviation(self._markers[REFERENCE_IDS[0]].get_corner(3), self._markers[REFERENCE_IDS[1]].get_corner(0))
 			PIXEL_TO_WORLD_RATIO = DISTANCE_CONSTANT_LONG/self._distance_in_pixels
 			for elem, each_marker in self._markers.items():
-				each_marker.update_pose(self._markers[REFERENCE_IDS[1]].get_corner(0), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
-		elif REFERENCE_IDS[1] in self._markers.keys():
-			self._distance_in_pixels = calculate_euc_distance(self._markers[REFERENCE_IDS[1]].get_corner(3), self._markers[REFERENCE_IDS[1]].get_corner(0))
-			self._angle_deviation = calculate_ang_deviation(self._markers[REFERENCE_IDS[1]].get_corner(3), self._markers[REFERENCE_IDS[1]].get_corner(0))
-			PIXEL_TO_WORLD_RATIO = DISTANCE_CONSTANT_CORNERS/self._distance_in_pixels
-			for elem, each_marker in self._markers.items():
-				each_marker.update_pose(self._markers[REFERENCE_IDS[1]].get_corner(0), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
-		elif REFERENCE_IDS[0] in self._markers.keys():
-			self._distance_in_pixels = calculate_euc_distance(self._markers[REFERENCE_IDS[0]].get_corner(3), self._markers[REFERENCE_IDS[0]].get_corner(0))
-			self._angle_deviation = calculate_ang_deviation(self._markers[REFERENCE_IDS[0]].get_corner(3), self._markers[REFERENCE_IDS[0]].get_corner(0))
-			PIXEL_TO_WORLD_RATIO = DISTANCE_CONSTANT_CORNERS/self._distance_in_pixels
-			for elem, each_marker in self._markers.items():
-				new_ref = self._markers[REFERENCE_IDS[0]].get_corner(0)
-				each_marker.update_pose((int(new_ref[0] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*cos(self._angle_deviation)), int(new_ref[1] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*sin(self._angle_deviation))), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
+				if elem not in REFERENCE_IDS:
+					each_marker.update_pose(self._markers[REFERENCE_IDS[1]].get_corner(0), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
+		# elif REFERENCE_IDS[1] in self._markers.keys():
+		#   self._distance_in_pixels = calculate_euc_distance(self._markers[REFERENCE_IDS[1]].get_corner(3), self._markers[REFERENCE_IDS[1]].get_corner(0))
+		#   self._angle_deviation = calculate_ang_deviation(self._markers[REFERENCE_IDS[1]].get_corner(3), self._markers[REFERENCE_IDS[1]].get_corner(0))
+		#   PIXEL_TO_WORLD_RATIO = DISTANCE_CONSTANT_CORNERS/self._distance_in_pixels
+		#   for elem, each_marker in self._markers.items():
+		#       each_marker.update_pose(self._markers[REFERENCE_IDS[1]].get_corner(0), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
+		# elif REFERENCE_IDS[0] in self._markers.keys():
+		#   self._distance_in_pixels = calculate_euc_distance(self._markers[REFERENCE_IDS[0]].get_corner(3), self._markers[REFERENCE_IDS[0]].get_corner(0))
+		#   self._angle_deviation = calculate_ang_deviation(self._markers[REFERENCE_IDS[0]].get_corner(3), self._markers[REFERENCE_IDS[0]].get_corner(0))
+		#   PIXEL_TO_WORLD_RATIO = DISTANCE_CONSTANT_CORNERS/self._distance_in_pixels
+		#   for elem, each_marker in self._markers.items():
+		#       new_ref = self._markers[REFERENCE_IDS[0]].get_corner(0)
+		#       each_marker.update_pose((int(new_ref[0] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*cos(self._angle_deviation)), int(new_ref[1] - (DISTANCE_CONSTANT_LONG/PIXEL_TO_WORLD_RATIO)*sin(self._angle_deviation))), self._angle_deviation, PIXEL_TO_WORLD_RATIO)
 
 
 def calculate_euc_distance((x0, y0), (x1, y1)):
