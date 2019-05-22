@@ -26,6 +26,7 @@ import math
 import time
 import csv
 import sys
+import glob
 
 # Maximum number of robots in the scene
 MAX_BOTS = 2
@@ -37,7 +38,7 @@ WAIT_TIME = 1
 class Tracker():
 	def __init__(self):
 		self._cap = cv2.VideoCapture(VIDEO_SOURCE_ID)
-		self._dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)	
+		self._dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50) 
 		self._font = cv2.FONT_HERSHEY_SIMPLEX
 		rospy.Subscriber("/neato01/pose", PoseStamped, self.tracked_neato01, queue_size=10)
 		cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
@@ -90,4 +91,4 @@ if __name__ == "__main__":
 	tracking_all_markers = rospy.Publisher("/tracked_all_markers", NumPoints, queue_size=10)
 	watch_dogs = Tracker()
 	while (True):
-		watch_dogs.track_every_frame()
+	  watch_dogs.track_every_frame()

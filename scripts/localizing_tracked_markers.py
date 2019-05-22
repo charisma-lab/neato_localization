@@ -46,23 +46,29 @@ class Marker():
 		distance_in_pixels = calculate_euc_distance((ref_x, ref_y), (x, y))
 		distance_in_meters = distance_in_pixels*PIXEL_TO_WORLD_RATIO
 		angle_transform = calculate_ang_deviation((ref_x, ref_y), (x, y))
-		orientation = calculate_ang_deviation((self._marker_points[0], self._marker_points[1]), (self._marker_points[-2], self._marker_points[-1]))
+		angle_transform = math.atan((-ref_y + y)/(ref_x - x))
+		orientation = -1*calculate_ang_deviation((self._marker_points[4], self._marker_points[5]), (self._marker_points[2], self._marker_points[3]))
 		new_x = (distance_in_meters*math.cos(angle_transform))
 		new_y = (distance_in_meters*math.sin(angle_transform))
-		if self._marker_points[1] <= self._marker_points[-1]:
-			if self._marker_points[0] >= self._marker_points[-2]:
-				orientation -= delta_angle
-			else:
-				orientation = 1*orientation + np.pi
-				orientation += delta_angle
-		else:
-			if self._marker_points[0] >= self._marker_points[-2]:
-				orientation += delta_angle
-			else:
-				orientation = 1*orientation - np.pi
-				orientation -= delta_angle
-		orientation = math.degrees(orientation)
+		orientation -= delta_angle
+		# if self._marker_points[1] <= self._marker_points[-1]:
+		# 	if self._marker_points[0] >= self._marker_points[-2]:
+		# 		orientation -= delta_angle
+		# 		orientation = orientation
+		# 	else:
+		# 		orientation = 1*orientation + np.pi
+		# 		orientation += delta_angle
+		# else:
+		# 	if self._marker_points[0] >= self._marker_points[-2]:
+		# 		orientation += delta_angle
+		# 	else:
+		# 		orientation = 1*orientation - np.pi
+		# 		orientation -= delta_angle
+
+		# print("3rd orientation : {}\n".format(orientation))
+		# orientation = math.degrees(orientation)
 		self._marker_pose = (new_x, new_y, orientation)
+		#self._marker_pose = (1, 1.5, -.4)
 		self.publish_pose()
 
 	def publish_pose(self):
@@ -132,8 +138,8 @@ def calculate_euc_distance((x0, y0), (x1, y1)):
 
 def calculate_ang_deviation((x0, y0), (x1, y1)):
 	delta_x = x0 - x1 + 0.0001*0.0001
-	delta_y = y1 - y0
-	return math.atan(delta_y/delta_x)
+	delta_y = y0 - y1
+	return math.atan2(delta_y, delta_x)
 
 def tracked_marker_callback(marker):
 	all_neato_robots.create_marker(marker)
