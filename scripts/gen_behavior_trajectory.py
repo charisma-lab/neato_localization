@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
 '''
-This node will generate the higher level trajectory for different behaviors such as "happy", Grumpy", and "Sleepy".
+This node will generate the higher level trajectory for different behaviors such as "Happy", Grumpy", and "Sleepy".
 '''
 
 import rospy
-import math
 import numpy as np
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped,Pose, Point, Quaternion
 import math
 import time
 from nav_msgs.msg import Path
@@ -64,17 +61,40 @@ class BehaviorGenerator:
 			poses_waypoints.append(PoseStamped(header, waypoint))
 		return poses_waypoints
 
+	def get_dist_theta_to_goal(self):
+		y_diff = self.goal[1] - self.start[1]
+		x_diff = self.goal[0] - self.start[0]
+		theta = math.atan2(y_diff, x_diff)
+		dist = math.sqrt(x_diff ** 2 + y_diff ** 2)
+		return x_diff, y_diff, dist, theta
+
+	def sample_poses(self, dist, theta, intermediate_steps):
+		# fix equidistant points on x-axis
+		sample_x = np.array(np.linspace(0, dist, num=intermediate_steps))
+		sample_y = np.random.uniform(-1.0, 1.0, intermediate_steps)
+		return sample_x, sample_y
+
+	def gen_heading(self, path_rotated):
+		"""Take path, and generate heading (in euler) based on the slope of point[i] to point[i+1]"""
+		# path_rotated has the start and end points
+		heading = np.zeros([path_rotated.shape[0], 1])
+		# Find heading for each point
+		for i in range(len(path_rotated) - 1): # since we are calculating dx, dy wrt i, and i+1
+			dx = path_rotated[i + 1, 0] - path_rotated[i, 0]
+			dy = path_rotated[i + 1, 1] - path_rotated[i, 1]
+			heading[i] = math.atan2(dy, dx)
+		heading[-1] = heading[-2]  # TODO: Or make it zero if you want
+		return heading
+
 	def gen_trajectory(self, behavior, amplitude=0.25):
+		"""Happy"""
 		if behavior == 1:
 			# generate sinusoidal path
-			y_diff = self.goal[1] - self.start[1]
-			x_diff = self.goal[0] - self.start[0]
-			theta = math.atan2(y_diff, x_diff)
-			dist = math.sqrt(x_diff**2 + y_diff**2)
-			freq = 0.5
-			dist_int = int(np.clip(dist, 0, dist))  # Does this make sense?
+			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 
-			path = np.linspace(0, dist_int, num=100)
+			freq = 0.5
+
+			path = np.linspace(0, dist, num=100)
 			omega = 2*np.pi*freq
 			path = np.array([[L, amplitude*np.sin(omega*L)] for L in path])
 			# Now we have a path, oscillating on the x-axis
@@ -87,10 +107,11 @@ class BehaviorGenerator:
 			for i, point in enumerate(path):
 				result = np.matmul(rot, point)
 				path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
-
 				# Now, path is from start point to goal point
+			path_rotated[0] = self.start # TODO: check if this is coming out correctly
+			path_rotated[-1] = self.goal
 
-			# Find heading for each point
+			# Find heading for each point #TODO: replace this with gen_heading?
 			for i in range(len(path_rotated)-1):
 				dx = path_rotated[i+1, 0] - path_rotated[i, 0]
 				dy = path_rotated[i+1, 1] - path_rotated[i, 1]
@@ -108,8 +129,44 @@ class BehaviorGenerator:
 			self.goal_publisher.publish(goal_to_publish)
 
 		if behavior == 2:
+			"""Grumpy"""
 			# generate zig-zag, non-smooth path
-			pass
+			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
+
+			# Number of intermediate points to visit
+			intermediate_steps = int(dist) + 1  # may need to play with this, +1 just
+			# if intermediate_steps == 0:
+			# 	intermediate_steps = 1
+
+			# Check if all point lie within the boundary
+			flag = True
+			while flag:
+				# On the vector from start to goal, sample zigzag points
+				sample_x, sample_y = self.sample_poses(dist, theta, intermediate_steps) # May need to linear interpolate
+				rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+				path_rotated = np.zeros([sample_x.shape[0], 2])  # initializing
+
+				for i in range(len(sample_x)):
+					# create [x,y] point for rotation
+					point = np.array([sample_x[i], sample_y[i]])
+					result = np.matmul(rot, point)
+					path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]  # offset start position
+
+				path_rotated[0] = self.start
+				path_rotated[-1] = self.goal
+
+				is_bounded = (path_rotated[:,0]>=0).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=0).all() and (path_rotated[:,1]<=10).all()
+				if is_bounded:
+					flag = False
+					# Now we have a valid "path_rotated"
+			# generate heading to populate pose message
+			heading = self.gen_heading(path_rotated)
+
+			# Now, populate the Path message
+			path_to_publish = Path()
+			path_to_publish.header = create_header('map')
+			path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+			self.waypoint_publisher.publish(path_to_publish)
 
 		if behavior == 3:
 			# generate sinusoidal with less frequency?
@@ -120,7 +177,7 @@ if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
 	# 1: happy, #2: grumpy, #3: sleepy
-	behavior = 1
+	behavior = 2
 	generator = BehaviorGenerator()
 	r = rospy.Rate(20)
 	start_time = time.time()
