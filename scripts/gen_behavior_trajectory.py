@@ -198,10 +198,6 @@ class BehaviorGenerator:
 			path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 			self.waypoint_publisher.publish(path_to_publish)
 
-		if behavior == 3:
-			# generate sinusoidal with less frequency?
-			pass
-
 
 if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
