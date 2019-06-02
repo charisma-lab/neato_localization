@@ -13,7 +13,7 @@ from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from move_base_msgs.msg import MoveBaseActionGoal, MoveBaseGoal
 from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler
-
+import matplotlib.pyplot as plt
 
 def create_header(frame_id):
 	header = Header()
@@ -86,19 +86,51 @@ class BehaviorGenerator:
 		heading[-1] = heading[-2]  # TODO: Or make it zero if you want
 		return heading
 
-	def gen_trajectory(self, behavior, amplitude=0.25):
-		"""Happy"""
-		if behavior == 1:
+	def gen_traj_section(self, wavelength, amp, wave_formed):
+		freq = 1.0 / wavelength
+		section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50)
+		omega = 2*np.pi*freq
+		section_path = np.array([[L, amp * np.sin(omega * L)] for L in section_path])
+		return section_path
+
+	def gen_traj_section_last(self, wavelength, amp, wave_formed):
+		freq = 1.0 / wavelength
+		omega = 2 * np.pi * freq
+		#section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50)
+		section_path = np.linspace(0, wavelength, num=wavelength * 50)
+		section_path = np.array([[L+wave_formed, amp * np.sin(omega * L)] for L in section_path])
+		return section_path
+
+	def gen_trajectory(self, behavior, amplitude=0.45):
+		"""Happy, or Grumpy. They have the same high level path, but the lower level controller will
+		impart distinguishing behavior"""
+
+		if behavior == 1 or behavior == 3:
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
+			path = []
 
-			freq = 0.5
+			if dist < 1.5:
+				wavelength = dist
+				path = self.gen_traj_section(wavelength, amplitude, 0)
 
-			path = np.linspace(0, dist, num=100)
-			omega = 2*np.pi*freq
-			path = np.array([[L, amplitude*np.sin(omega*L)] for L in path])
-			# Now we have a path, oscillating on the x-axis
+			if dist > 1.5:
+				remaining = dist  # start with total length and then keep reducing
+				wave_formed = 0.0   # start with zero, and keep adding
 
+				while wave_formed != dist:
+					remaining = remaining - 1.5
+					if remaining >=1.5:
+						path.append(self.gen_traj_section(1.5, amplitude, wave_formed))  # generate path for 1.5 meters
+						wave_formed += 1.5
+					else:
+						path.append(self.gen_traj_section_last(1.5+remaining, amplitude, wave_formed))
+						wave_formed += (1.5 + remaining)
+			path = np.concatenate(path, axis=0)
+			print()
+			# Now we have a path (in x axis)
+
+			# Define rotation matrix to rotate the whole line
 			rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
 			path_rotated = np.zeros([path.shape[0], path.shape[1]])
@@ -135,8 +167,6 @@ class BehaviorGenerator:
 
 			# Number of intermediate points to visit
 			intermediate_steps = int(dist) + 1  # may need to play with this, +1 just
-			# if intermediate_steps == 0:
-			# 	intermediate_steps = 1
 
 			# Check if all point lie within the boundary
 			flag = True
@@ -177,7 +207,7 @@ if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
 	# 1: happy, #2: grumpy, #3: sleepy
-	behavior = 2
+	behavior = 1
 	generator = BehaviorGenerator()
 	r = rospy.Rate(20)
 	start_time = time.time()

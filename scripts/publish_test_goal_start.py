@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-import math
-import numpy as np
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped,Pose, Point, Quaternion
-import math
 import time
-from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler
@@ -37,7 +31,7 @@ if __name__ == "__main__":
 
     header = create_header('map')
     start_pose = Pose(Point(0.0, 0.0, 0.0), quat_heading(0.0))
-    goal_pose = Pose(Point(5.0, 5.0, 0.0), quat_heading(0.0))
+    goal_pose = Pose(Point(4.0, 4.0, 0.0), quat_heading(0.0))
 
     start_pose_stampted = PoseStamped(header, start_pose)
     goal_pose_stampted = PoseStamped(header, goal_pose)
