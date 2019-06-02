@@ -13,6 +13,7 @@ import math
 import time
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from move_base_msgs.msg import MoveBaseActionGoal, MoveBaseGoal
 from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler
 
@@ -30,12 +31,12 @@ def quat_heading(yaw):
 
 class BehaviorGenerator:
 	def __init__(self):
-		self.waypoint_publisher = rospy.Publisher('/waypoints_list', Path, queue_size=1)
+		self.waypoint_publisher = rospy.Publisher('/neato01/social_global_plan', Path, queue_size=1)
+		self.goal_publisher = rospy.Publisher('/move_base/goal', MoveBaseActionGoal, queue_size=1)
 		rospy.Subscriber('/neato05/pose', PoseStamped, self.goal_callback, queue_size=1) # Use of service could be more efficient
 		rospy.Subscriber('/neato01/pose', PoseStamped, self.start_callback, queue_size=1)
 		rospy.Subscriber('/obstacle', PoseStamped, self.obstacle_callback, queue_size=1)
-		self.waypoints_pub = rospy.Publisher('/waypoints_list', Path, queue_size=1)
-
+		
 		self.start = None
 		self.goal = None
 		self.obstacle = None
@@ -43,6 +44,7 @@ class BehaviorGenerator:
 	def goal_callback(self, goal_msg):
 		# extract the pose and update
 		self.goal = [goal_msg.pose.position.x, goal_msg.pose.position.y]
+		self.goal_stamped = goal_msg
 		# print('self.goal : ', self.goal)
 
 	def start_callback(self, start_msg):
@@ -100,6 +102,10 @@ class BehaviorGenerator:
 			path_to_publish.header = create_header('map')
 			path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 			self.waypoint_publisher.publish(path_to_publish)
+			goal_to_publish = MoveBaseActionGoal()
+			goal_to_publish.header = path_to_publish.header
+			goal_to_publish.goal.target_pose = self.goal_stamped
+			self.goal_publisher.publish(goal_to_publish)
 
 		if behavior == 2:
 			# generate zig-zag, non-smooth path
