@@ -33,7 +33,7 @@ class BehaviorGenerator:
 		rospy.Subscriber('/neato05/pose', PoseStamped, self.goal_callback, queue_size=1) # Use of service could be more efficient
 		rospy.Subscriber('/neato01/pose', PoseStamped, self.start_callback, queue_size=1)
 		rospy.Subscriber('/obstacle', PoseStamped, self.obstacle_callback, queue_size=1)
-		
+
 		self.start = None
 		self.goal = None
 		self.obstacle = None
@@ -101,7 +101,7 @@ class BehaviorGenerator:
 		section_path = np.array([[L+wave_formed, amp * np.sin(omega * L)] for L in section_path])
 		return section_path
 
-	def gen_trajectory(self, behavior, amplitude=0.45):
+	def gen_trajectory(self, behavior, amplitude=0.35):
 		"""Happy, or Grumpy. They have the same high level path, but the lower level controller will
 		impart distinguishing behavior"""
 
@@ -112,7 +112,7 @@ class BehaviorGenerator:
 
 			if dist < 1.5:
 				wavelength = dist
-				path = self.gen_traj_section(wavelength, amplitude, 0)
+				path = self.gen_traj_section(wavelength, amplitude*0.5, 0)
 
 			if dist > 1.5:
 				remaining = dist  # start with total length and then keep reducing
@@ -126,13 +126,14 @@ class BehaviorGenerator:
 					else:
 						path.append(self.gen_traj_section_last(1.5+remaining, amplitude, wave_formed))
 						wave_formed += (1.5 + remaining)
-			path = np.concatenate(path, axis=0)
-			print()
+				path = np.concatenate(path, axis=0)
 			# Now we have a path (in x axis)
 
 			# Define rotation matrix to rotate the whole line
 			rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-
+# # DEBUG:
+			#print(path)
+			#print(path.shape)
 			path_rotated = np.zeros([path.shape[0], path.shape[1]])
 			heading = np.zeros([path.shape[0],1])
 
