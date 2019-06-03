@@ -38,18 +38,25 @@ class BehaviorGenerator:
 		self.goal = None
 		self.obstacle = None
 
-		self.last_goal = 0.0
+		self.last_goal = None
 		self.goal_change_threshold = 0.5
 		self.happy_section_length = 1.5
 		self.sine_amplitude = 0.35
 		self.change_goal_flag = True
 
+		self.start_goal_flag = True
+
+		self.goal_to_publish = None  # TODO: redundant if i use path_to_publish for same purpose
 		self.path_to_publish = None
 
 	def goal_callback(self, goal_msg):
 		# extract the pose and update
 		self.goal = [goal_msg.pose.position.x, goal_msg.pose.position.y]
 		self.goal_stamped = goal_msg
+
+		if self.start_goal_flag:
+			self.last_goal = self.goal
+
 		#print('self.goal : ', self.goal)
 
 	def start_callback(self, start_msg):
@@ -75,6 +82,12 @@ class BehaviorGenerator:
 		theta = math.atan2(y_diff, x_diff)
 		dist = math.sqrt(x_diff ** 2 + y_diff ** 2)
 		return x_diff, y_diff, dist, theta
+
+	def get_change_goal_dist(self):
+		y_diff = self.goal[1] - self.last_goal[1]
+		x_diff = self.goal[0] - self.last_goal[0]
+		dist = math.sqrt(x_diff ** 2 + y_diff ** 2)
+		return dist
 
 	def sample_poses(self, dist, theta, intermediate_steps):
 		# fix equidistant points on x-axis
@@ -109,6 +122,11 @@ class BehaviorGenerator:
 		section_path = np.array([[L+wave_formed, amp * np.sin(omega * L)] for L in section_path])
 		return section_path
 
+	def check_goal_change(self):
+		goal_change_dist = self.get_change_goal_dist()
+		has_changed = (abs(goal_change_dist) > self.goal_change_threshold)
+		return has_changed
+
 	def gen_trajectory(self, behavior):
 		"""Happy, or Grumpy. They have the same high level path, but the lower level controller will
 		impart distinguishing behavior"""
@@ -118,70 +136,80 @@ class BehaviorGenerator:
 		if behavior == 1 or behavior == 3:
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
-			path = []
 
-			if dist < self.happy_section_length:
-				wavelength = dist
-				path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease by half
+			# # Check we need to generate new trajectory, based on goal_change_threshold
+			# goal_change_dist = self.get_change_goal_dist()
 
-			if dist > self.happy_section_length:
-				remaining = dist  # start with total length and then keep reducing
-				wave_formed = 0.0   # start with zero, and keep adding
+			# if abs(goal_change_dist) > self.goal_change_threshold:
+			if self.check_goal_change() or self.start_goal_flag:
+				self.last_goal = self.goal
 
-				while wave_formed != dist:
-					remaining = remaining - self.happy_section_length
-					if remaining >=self.happy_section_length:
-						path.append(self.gen_traj_section(self.happy_section_length, amplitude, wave_formed))  # generate path for 1.5 meters
-						wave_formed += self.happy_section_length
-					else:
-						path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
-						wave_formed += (self.happy_section_length + remaining)
-				path = np.concatenate(path, axis=0)
-			# Now we have a path (in x axis)
+				path = []
 
-			# Define rotation matrix to rotate the whole line
-			rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+				if dist < self.happy_section_length:
+					wavelength = dist
+					path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease by half
 
-			path_rotated = np.zeros([path.shape[0], path.shape[1]])
-			heading = np.zeros([path.shape[0],1])
+				if dist > self.happy_section_length:
+					remaining = dist  # start with total length and then keep reducing
+					wave_formed = 0.0   # start with zero, and keep adding
 
-			for i, point in enumerate(path):
-				result = np.matmul(rot, point)
-				path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
-				# Now, path is from start point to goal point
-			path_rotated[0] = self.start # TODO: check if this is coming out correctly
-			path_rotated[-1] = self.goal
+					while wave_formed != dist:
+						remaining = remaining - self.happy_section_length
+						if remaining >=self.happy_section_length:
+							path.append(self.gen_traj_section(self.happy_section_length, amplitude, wave_formed))  # generate path for 1.5 meters
+							wave_formed += self.happy_section_length
+						else:
+							path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
+							wave_formed += (self.happy_section_length + remaining)
+					path = np.concatenate(path, axis=0)
+				# Now we have a path (in x axis)
 
-			# Find heading for each point #TODO: replace this with gen_heading?
-			for i in range(len(path_rotated)-1):
-				dx = path_rotated[i+1, 0] - path_rotated[i, 0]
-				dy = path_rotated[i+1, 1] - path_rotated[i, 1]
-				heading[i] = math.atan2(dy, dx)
-			heading[-1] = heading[-2]
+				# Define rotation matrix to rotate the whole line
+				rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
-			# Now, populate the Path message
-			path_to_publish = Path()
-			path_to_publish.header = create_header('map')
-			path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
-			self.waypoint_publisher.publish(path_to_publish)
-			goal_to_publish = MoveBaseActionGoal()
-			goal_to_publish.header = path_to_publish.header
-			goal_to_publish.goal.target_pose = self.goal_stamped
-			self.goal_publisher.publish(goal_to_publish)
+				path_rotated = np.zeros([path.shape[0], path.shape[1]])
+				heading = np.zeros([path.shape[0],1])
+
+				for i, point in enumerate(path):
+					result = np.matmul(rot, point)
+					path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
+					# Now, path is from start point to goal point
+				path_rotated[0] = self.start # TODO: check if this is coming out correctly
+				path_rotated[-1] = self.goal
+
+				# Find heading for each point #TODO: replace this with gen_heading?
+				for i in range(len(path_rotated)-1):
+					dx = path_rotated[i+1, 0] - path_rotated[i, 0]
+					dy = path_rotated[i+1, 1] - path_rotated[i, 1]
+					heading[i] = math.atan2(dy, dx)
+				heading[-1] = heading[-2]
+
+				# Now, populate the Path message #TODO: move to separate function
+				path_to_publish = Path()
+				path_to_publish.header = create_header('map')
+				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+				self.waypoint_publisher.publish(path_to_publish)
+				goal_to_publish = MoveBaseActionGoal()
+				goal_to_publish.header = path_to_publish.header
+				goal_to_publish.goal.target_pose = self.goal_stamped
+
+				self.goal_to_publish = goal_to_publish  # save it
+				self.goal_publisher.publish(self.goal_to_publish)
+
+			else:
+				self.goal_publisher.publish(self.goal_to_publish)
 
 		if behavior == 2:
 			"""Grumpy"""
 			# generate zig-zag, non-smooth path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
 
-			# if self.change_goal_flag:  # flag is initialized as True
-			# 	self.last_goal = dist  # In order to generate updated waypoints only when dist>goal_change_threshold
-			# 	self.change_goal_flag = False
-
 			# Check we need to generate new trajectory, based on goal_change_threshold
-			if abs(dist - self.last_goal) > self.goal_change_threshold:
-				#self.change_goal_flag = True
-				self.last_goal = dist
+			# goal_change_dist = self.get_change_goal_dist()
+
+			if self.check_goal_change() or self.start_goal_flag:
+				self.last_goal = self.goal
 
 				# Number of intermediate points to visit
 				intermediate_steps = int(dist) + 2  # may need to play with this, +1 just
