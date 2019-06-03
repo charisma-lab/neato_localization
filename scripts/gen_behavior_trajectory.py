@@ -38,6 +38,12 @@ class BehaviorGenerator:
 		self.goal = None
 		self.obstacle = None
 
+		self.last_goal = 0.0
+		self.goal_change_threshold = 0.7
+		self.change_goal_flag = True
+
+		self.path_to_publish = None
+
 	def goal_callback(self, goal_msg):
 		# extract the pose and update
 		self.goal = [goal_msg.pose.position.x, goal_msg.pose.position.y]
@@ -53,8 +59,8 @@ class BehaviorGenerator:
 
 	def populate_path_msg(self, rotated_path, heading):
 		poses_waypoints = []
-		# print('rotated_path : ', rotated_path)
 		for i, point in enumerate(rotated_path):
+			# print('rotated_path : ', rotated_path)
 			# print('point : ', point)
 			header = create_header('map')
 			waypoint = Pose(Point(float(point[0]), float(point[1]), 0), quat_heading(float(heading[i])))
@@ -131,9 +137,7 @@ class BehaviorGenerator:
 
 			# Define rotation matrix to rotate the whole line
 			rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-# # DEBUG:
-			#print(path)
-			#print(path.shape)
+
 			path_rotated = np.zeros([path.shape[0], path.shape[1]])
 			heading = np.zeros([path.shape[0],1])
 
@@ -166,45 +170,61 @@ class BehaviorGenerator:
 			# generate zig-zag, non-smooth path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
 
-			# Number of intermediate points to visit
-			intermediate_steps = int(dist) + 1  # may need to play with this, +1 just
+			# if self.change_goal_flag:  # flag is initialized as True
+			# 	self.last_goal = dist  # In order to generate updated waypoints only when dist>goal_change_threshold
+			# 	self.change_goal_flag = False
 
-			# Check if all point lie within the boundary
-			flag = True
-			while flag:
-				# On the vector from start to goal, sample zigzag points
-				sample_x, sample_y = self.sample_poses(dist, theta, intermediate_steps) # May need to linear interpolate
-				rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-				path_rotated = np.zeros([sample_x.shape[0], 2])  # initializing
+			# Check we need to generate new trajectory, based on goal_change_threshold
+			if abs(dist - self.last_goal) > 0.6:
+				#self.change_goal_flag = True
+				self.last_goal = dist
 
-				for i in range(len(sample_x)):
-					# create [x,y] point for rotation
-					point = np.array([sample_x[i], sample_y[i]])
-					result = np.matmul(rot, point)
-					path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]  # offset start position
+				# Number of intermediate points to visit
+				intermediate_steps = int(dist) + 2  # may need to play with this, +1 just
 
-				path_rotated[0] = self.start
-				path_rotated[-1] = self.goal
+				# Check if all point lie within the boundary
+				flag = True
+				while flag:
+					# On the vector from start to goal, sample zigzag points
+					sample_x, sample_y = self.sample_poses(dist, theta, intermediate_steps) # May need to linear interpolate
+					rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+					path_rotated = np.zeros([sample_x.shape[0], 2])  # initializing
 
-				is_bounded = (path_rotated[:,0]>=0).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=0).all() and (path_rotated[:,1]<=10).all()
-				if is_bounded:
-					flag = False
-					# Now we have a valid "path_rotated"
-			# generate heading to populate pose message
-			heading = self.gen_heading(path_rotated)
+					for i in range(len(sample_x)):
+						# create [x,y] point for rotation
+						point = np.array([sample_x[i], sample_y[i]])
+						result = np.matmul(rot, point)
+						path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]  # offset start position
 
-			# Now, populate the Path message
-			path_to_publish = Path()
-			path_to_publish.header = create_header('map')
-			path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
-			self.waypoint_publisher.publish(path_to_publish)
+					path_rotated[0] = self.start
+					path_rotated[-1] = self.goal
+
+					is_bounded = (path_rotated[:,0]>=0).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=0).all() and (path_rotated[:,1]<=10).all()
+					if is_bounded:
+						flag = False
+						# Now we have a valid "path_rotated"
+				# generate heading to populate pose message
+				heading = self.gen_heading(path_rotated)
+
+				# Now, populate the Path message
+				path_to_publish = Path()
+				path_to_publish.header = create_header('map')
+				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+				self.path_to_publish = path_to_publish  # save it
+
+				#self.waypoint_publisher.publish(path_to_publish)
+				self.waypoint_publisher.publish(self.path_to_publish)
+
+			else:
+				# Publish older path
+				self.waypoint_publisher.publish(self.path_to_publish)
 
 
 if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
 	# 1: happy, #2: grumpy, #3: sleepy
-	behavior = 1
+	behavior = 2
 	generator = BehaviorGenerator()
 	r = rospy.Rate(20)
 	start_time = time.time()
