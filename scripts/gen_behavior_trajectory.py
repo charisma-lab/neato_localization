@@ -11,7 +11,7 @@ import time
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from move_base_msgs.msg import MoveBaseActionGoal, MoveBaseGoal
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Bool
 from tf.transformations import quaternion_from_euler
 import matplotlib.pyplot as plt
 
@@ -30,6 +30,7 @@ class BehaviorGenerator:
 	def __init__(self):
 		self.waypoint_publisher = rospy.Publisher('/neato01/social_global_plan', Path, queue_size=1)
 		self.goal_publisher = rospy.Publisher('/move_base/goal', MoveBaseActionGoal, queue_size=1)
+		self.changed_goal_publisher = rospy.Publisher('/neato01/changed_goal', Bool, queue_size=1)
 		rospy.Subscriber('/neato05/pose', PoseStamped, self.goal_callback, queue_size=1) # Use of service could be more efficient
 		rospy.Subscriber('/neato01/pose', PoseStamped, self.start_callback, queue_size=1)
 		rospy.Subscriber('/obstacle', PoseStamped, self.obstacle_callback, queue_size=1)
@@ -190,15 +191,19 @@ class BehaviorGenerator:
 				path_to_publish.header = create_header('map')
 				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 				self.waypoint_publisher.publish(path_to_publish)
-				goal_to_publish = MoveBaseActionGoal()
-				goal_to_publish.header = path_to_publish.header
-				goal_to_publish.goal.target_pose = self.goal_stamped
-
-				self.goal_to_publish = goal_to_publish  # save it
-				self.goal_publisher.publish(self.goal_to_publish)
+				#
+				# goal_to_publish = MoveBaseActionGoal()
+				# goal_to_publish.header = path_to_publish.header
+				# goal_to_publish.goal.target_pose = self.goal_stamped
+				#
+				self.path_to_publish = path_to_publish  # save it
+				# self.goal_publisher.publish(self.goal_to_publish)
+				print("changed goal")
+				self.start_goal_flag = False
 
 			else:
-				self.goal_publisher.publish(self.goal_to_publish)
+				self.waypoint_publisher.publish(self.path_to_publish)
+				print("publishing old path")
 
 		if behavior == 2:
 			"""Grumpy"""
@@ -212,7 +217,7 @@ class BehaviorGenerator:
 				self.last_goal = self.goal
 
 				# Number of intermediate points to visit
-				intermediate_steps = int(dist) + 2  # may need to play with this, +1 just
+				intermediate_steps = 2*(int(dist) + 1)  # may need to play with this, +1 just
 
 				# Check if all point lie within the boundary
 				flag = True
@@ -231,7 +236,7 @@ class BehaviorGenerator:
 					path_rotated[0] = self.start
 					path_rotated[-1] = self.goal
 
-					is_bounded = (path_rotated[:,0]>=0).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=0).all() and (path_rotated[:,1]<=10).all()
+					is_bounded = (path_rotated[:,0]>=-10).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=-10).all() and (path_rotated[:,1]<=10).all()
 					if is_bounded:
 						flag = False
 						# Now we have a valid "path_rotated"
@@ -244,12 +249,18 @@ class BehaviorGenerator:
 				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 				self.path_to_publish = path_to_publish  # save it
 
+				changed_goal = Bool()
+				changed_goal.data = True
 				#self.waypoint_publisher.publish(path_to_publish)
 				self.waypoint_publisher.publish(self.path_to_publish)
-
+				self.changed_goal_publisher.publish(changed_goal)
+				self.start_goal_flag = False
 			else:
 				# Publish older path
 				self.waypoint_publisher.publish(self.path_to_publish)
+				changed_goal = Bool()
+				changed_goal.data = False
+				self.changed_goal_publisher.publish(changed_goal)
 
 
 if __name__ == "__main__":
