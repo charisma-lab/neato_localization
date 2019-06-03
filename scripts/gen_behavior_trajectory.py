@@ -39,7 +39,9 @@ class BehaviorGenerator:
 		self.obstacle = None
 
 		self.last_goal = 0.0
-		self.goal_change_threshold = 0.7
+		self.goal_change_threshold = 0.5
+		self.happy_section_length = 1.5
+		self.sine_amplitude = 0.35
 		self.change_goal_flag = True
 
 		self.path_to_publish = None
@@ -48,11 +50,11 @@ class BehaviorGenerator:
 		# extract the pose and update
 		self.goal = [goal_msg.pose.position.x, goal_msg.pose.position.y]
 		self.goal_stamped = goal_msg
-		# print('self.goal : ', self.goal)
+		#print('self.goal : ', self.goal)
 
 	def start_callback(self, start_msg):
 		self.start = [start_msg.pose.position.x, start_msg.pose.position.y]
-		# print('self.start : ', self.start)
+		#print('self.start : ', self.start)
 
 	def obstacle_callback(self, obstacle_msg):
 		self.obstacle = obstacle_msg
@@ -107,31 +109,33 @@ class BehaviorGenerator:
 		section_path = np.array([[L+wave_formed, amp * np.sin(omega * L)] for L in section_path])
 		return section_path
 
-	def gen_trajectory(self, behavior, amplitude=0.35):
+	def gen_trajectory(self, behavior):
 		"""Happy, or Grumpy. They have the same high level path, but the lower level controller will
 		impart distinguishing behavior"""
+
+		amplitude = self.sine_amplitude
 
 		if behavior == 1 or behavior == 3:
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 			path = []
 
-			if dist < 1.5:
+			if dist < self.happy_section_length:
 				wavelength = dist
-				path = self.gen_traj_section(wavelength, amplitude*0.5, 0)
+				path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease by half
 
-			if dist > 1.5:
+			if dist > self.happy_section_length:
 				remaining = dist  # start with total length and then keep reducing
 				wave_formed = 0.0   # start with zero, and keep adding
 
 				while wave_formed != dist:
-					remaining = remaining - 1.5
-					if remaining >=1.5:
-						path.append(self.gen_traj_section(1.5, amplitude, wave_formed))  # generate path for 1.5 meters
-						wave_formed += 1.5
+					remaining = remaining - self.happy_section_length
+					if remaining >=self.happy_section_length:
+						path.append(self.gen_traj_section(self.happy_section_length, amplitude, wave_formed))  # generate path for 1.5 meters
+						wave_formed += self.happy_section_length
 					else:
-						path.append(self.gen_traj_section_last(1.5+remaining, amplitude, wave_formed))
-						wave_formed += (1.5 + remaining)
+						path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
+						wave_formed += (self.happy_section_length + remaining)
 				path = np.concatenate(path, axis=0)
 			# Now we have a path (in x axis)
 
@@ -175,7 +179,7 @@ class BehaviorGenerator:
 			# 	self.change_goal_flag = False
 
 			# Check we need to generate new trajectory, based on goal_change_threshold
-			if abs(dist - self.last_goal) > 0.6:
+			if abs(dist - self.last_goal) > self.goal_change_threshold:
 				#self.change_goal_flag = True
 				self.last_goal = dist
 
@@ -224,7 +228,14 @@ if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
 	# 1: happy, #2: grumpy, #3: sleepy
-	behavior = 2
+
+        key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \n')
+        if key_input == 1:
+	    behavior = 1
+        elif key_input == 2:
+	    behavior = 2
+        elif key_input == 3:
+	    behavior = 3
 	generator = BehaviorGenerator()
 	r = rospy.Rate(20)
 	start_time = time.time()

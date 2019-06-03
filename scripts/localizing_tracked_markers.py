@@ -46,7 +46,7 @@ class Marker():
 		distance_in_pixels = calculate_euc_distance((ref_x, ref_y), (x, y))
 		distance_in_meters = distance_in_pixels*PIXEL_TO_WORLD_RATIO
 		angle_transform = calculate_ang_deviation((ref_x, ref_y), (x, y))
-		angle_transform = math.atan((-ref_y + y)/(ref_x - x))
+		angle_transform = math.atan((-ref_y + y)/(ref_x - x + 0.0001))
 		orientation = -1*calculate_ang_deviation((self._marker_points[4], self._marker_points[5]), (self._marker_points[2], self._marker_points[3]))
 		new_x = (distance_in_meters*math.cos(angle_transform))
 		new_y = (distance_in_meters*math.sin(angle_transform))
