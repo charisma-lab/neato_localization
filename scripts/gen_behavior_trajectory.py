@@ -40,7 +40,7 @@ class BehaviorGenerator:
 		self.obstacle = None
 
 		self.last_goal = None
-		self.goal_change_threshold = 0.5
+		self.goal_change_threshold = 0.3
 		self.happy_section_length = 1.5
 		self.sine_amplitude = 0.35
 		self.change_goal_flag = True
