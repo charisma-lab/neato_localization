@@ -129,12 +129,14 @@ class BehaviorGenerator:
 		return has_changed
 
 	def gen_trajectory(self, behavior):
-		"""Happy, or Grumpy. They have the same high level path, but the lower level controller will
-		impart distinguishing behavior"""
+		""""Generate the high level path for each of the seven emotions"""
 
 		amplitude = self.sine_amplitude
+		"""<-----------------------HAPPY OR SLEEPY---------------------------->
+		Happy and Sleepy have the same high level path, but the lower level controller will
+		impart distinguishing behavior. Grumpy has a a different high level path"""
 
-		if behavior == 1 or behavior == 3:
+		if behavior == 1 or behavior == 3: 
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 
@@ -204,9 +206,9 @@ class BehaviorGenerator:
 			else:
 				self.waypoint_publisher.publish(self.path_to_publish)
 				print("publishing old path")
+		"""<----------------------GRUMPY---------------------------->"""
 
-		if behavior == 2:
-			"""Grumpy"""
+		if behavior == 2: #determine if behavior selected is Grumpy 
 			# generate zig-zag, non-smooth path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
 
@@ -261,21 +263,25 @@ class BehaviorGenerator:
 				changed_goal = Bool()
 				changed_goal.data = False
 				self.changed_goal_publisher.publish(changed_goal)
+		"""<-----------------------SNEEZY---------------------------->"""
+		if behavior == 4: #determine if behavior selected is Sneezy 
 
 
 if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
-	# 1: happy, #2: grumpy, #3: sleepy
-
-        key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \n')
-        if key_input == 1:
+	# ask user to input emotion, behavior is set to the emotion 
+	# 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy 
+    key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \n')
+    if key_input == 1:
 	    behavior = 1
-        elif key_input == 2:
+    elif key_input == 2:
 	    behavior = 2
-        elif key_input == 3:
+    elif key_input == 3:
 	    behavior = 3
-	generator = BehaviorGenerator()
+	elif key_input == 4: 
+		behavior = 4
+	generator = BehaviorGenerator() 
 	r = rospy.Rate(20)
 	start_time = time.time()
 	while not rospy.is_shutdown():
