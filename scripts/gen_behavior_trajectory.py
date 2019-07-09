@@ -266,6 +266,10 @@ class BehaviorGenerator:
 		"""<-----------------------SNEEZY---------------------------->"""
 		if behavior == 4: #determine if behavior selected is Sneezy 
 
+			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
+			
+			if self.check_goal_change() or self.start_goal_flag:
+				self.last_goal = self.goal
 
 if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
