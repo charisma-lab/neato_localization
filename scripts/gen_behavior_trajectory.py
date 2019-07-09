@@ -276,6 +276,7 @@ if __name__ == "__main__":
 	print('Node : waypoint_publisher started')
 	# ask user to input emotion, behavior is set to the emotion 
 	# 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy 
+	# 5 = doc, 6 = dopey, 7 = bashful 
     key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \t 5: doc \t 6: dopey \t 7: bashful \n')
     if key_input == 1:
 	    behavior = 1
