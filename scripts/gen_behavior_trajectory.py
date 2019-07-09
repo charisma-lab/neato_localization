@@ -276,7 +276,7 @@ if __name__ == "__main__":
 	print('Node : waypoint_publisher started')
 	# ask user to input emotion, behavior is set to the emotion 
 	# 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy 
-    key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \n')
+    key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \t 5: doc \t 6: dopey \t 7: bashful \n')
     if key_input == 1:
 	    behavior = 1
     elif key_input == 2:
@@ -285,6 +285,12 @@ if __name__ == "__main__":
 	    behavior = 3
 	elif key_input == 4: 
 		behavior = 4
+    elif key_input == 5: 
+        behavior = 5 
+    elif key_input == 6: 
+     	behavior = 6
+    elif key_input == 7: 
+        behavior = 7
 	generator = BehaviorGenerator() 
 	r = rospy.Rate(20)
 	start_time = time.time()
