@@ -151,7 +151,7 @@ class BehaviorGenerator:
 
 				if dist < self.happy_section_length:
 					wavelength = dist
-					path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease by half
+					path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease amplitude by half
 
 				if dist > self.happy_section_length:
 					remaining = dist  # start with total length and then keep reducing
@@ -206,7 +206,8 @@ class BehaviorGenerator:
 			else:
 				self.waypoint_publisher.publish(self.path_to_publish)
 				print("publishing old path")
-		"""<----------------------GRUMPY---------------------------->"""
+
+		#<---------------------------------------GRUMPY------------------------------------->
 
 		if behavior == 2: #determine if behavior selected is Grumpy 
 			# generate zig-zag, non-smooth path
@@ -263,14 +264,139 @@ class BehaviorGenerator:
 				changed_goal = Bool()
 				changed_goal.data = False
 				self.changed_goal_publisher.publish(changed_goal)
-		"""<-----------------------SNEEZY---------------------------->"""
-		if behavior == 4: #determine if behavior selected is Sneezy 
 
-			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
-			
+	#<-------------------------------------DOPEY------------------------------------------> 
+		if behavior == 6: 
+			# generate sinusoidal path
+			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
+
+			# # Check we need to generate new trajectory, based on goal_change_threshold
+			# goal_change_dist = self.get_change_goal_dist()
+
+			# if abs(goal_change_dist) > self.goal_change_threshold:
 			if self.check_goal_change() or self.start_goal_flag:
 				self.last_goal = self.goal
 
+				path = []
+
+				wavelength = dist
+				path = self.gen_traj_section(wavelength, 0, 0)  # decrease by half
+
+				# Now we have a path (in x axis)
+
+				# Define rotation matrix to rotate the whole line
+				rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+
+				path_rotated = np.zeros([path.shape[0], path.shape[1]])
+				heading = np.zeros([path.shape[0],1])
+
+				for i, point in enumerate(path):
+					result = np.matmul(rot, point)
+					path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
+					# Now, path is from start point to goal point
+				path_rotated[0] = self.start # TODO: check if this is coming out correctly
+				path_rotated[-1] = self.goal
+
+				# Find heading for each point #TODO: replace this with gen_heading?
+				for i in range(len(path_rotated)-1):
+					dx = path_rotated[i+1, 0] - path_rotated[i, 0]
+					dy = path_rotated[i+1, 1] - path_rotated[i, 1]
+					heading[i] = math.atan2(dy, dx)
+				heading[-1] = heading[-2]
+
+				# Now, populate the Path message #TODO: move to separate function
+				path_to_publish = Path()
+				path_to_publish.header = create_header('map')
+				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+				self.waypoint_publisher.publish(path_to_publish)
+				#
+				# goal_to_publish = MoveBaseActionGoal()
+				# goal_to_publish.header = path_to_publish.header
+				# goal_to_publish.goal.target_pose = self.goal_stamped
+				#
+				self.path_to_publish = path_to_publish  # save it
+				# self.goal_publisher.publish(self.goal_to_publish)
+				print("changed goal")
+				self.start_goal_flag = False
+
+			else:
+				self.waypoint_publisher.publish(self.path_to_publish)
+				print("publishing old path")
+
+	#<-------------------------------------DOC------------------------------------------>
+
+		if behavior == 5: 
+			# generate sinusoidal path
+			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
+
+			# # Check we need to generate new trajectory, based on goal_change_threshold
+			# goal_change_dist = self.get_change_goal_dist()
+
+			# if abs(goal_change_dist) > self.goal_change_threshold:
+			if self.check_goal_change() or self.start_goal_flag:
+				self.last_goal = self.goal
+
+				path = []
+
+				if dist < self.happy_section_length:
+					wavelength = dist
+					path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease amplitude by half
+
+				if dist > self.happy_section_length:
+					remaining = dist  # start with total length and then keep reducing
+					wave_formed = 0.0   # start with zero, and keep adding
+
+					while wave_formed != dist:
+						remaining = remaining - self.happy_section_length
+						if remaining >=self.happy_section_length:
+							path.append(self.gen_traj_section(self.happy_section_length, amplitude, wave_formed))  # generate path for 1.5 meters
+							wave_formed += self.happy_section_length
+						else:
+							path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
+							wave_formed += (self.happy_section_length + remaining)
+					path = np.concatenate(path, axis=0)
+				# Now we have a path (in x axis)
+
+				# Define rotation matrix to rotate the whole line
+				rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+
+				path_rotated = np.zeros([path.shape[0], path.shape[1]])
+				heading = np.zeros([path.shape[0],1])
+
+				for i, point in enumerate(path):
+					result = np.matmul(rot, point)
+					path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
+					# Now, path is from start point to goal point
+				path_rotated[0] = self.start # TODO: check if this is coming out correctly
+				path_rotated[-1] = self.goal
+
+				# Find heading for each point #TODO: replace this with gen_heading?
+				for i in range(len(path_rotated)-1):
+					dx = path_rotated[i+1, 0] - path_rotated[i, 0]
+					dy = path_rotated[i+1, 1] - path_rotated[i, 1]
+					heading[i] = math.atan2(dy, dx)
+				heading[-1] = heading[-2]
+
+				# Now, populate the Path message #TODO: move to separate function
+				path_to_publish = Path()
+				path_to_publish.header = create_header('map')
+				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+				self.waypoint_publisher.publish(path_to_publish)
+				#
+				# goal_to_publish = MoveBaseActionGoal()
+				# goal_to_publish.header = path_to_publish.header
+				# goal_to_publish.goal.target_pose = self.goal_stamped
+				#
+				self.path_to_publish = path_to_publish  # save it
+				# self.goal_publisher.publish(self.goal_to_publish)
+				print("changed goal")
+				self.start_goal_flag = False
+
+			else:
+				self.waypoint_publisher.publish(self.path_to_publish)
+				print("publishing old path")
+
+#------------------------------------------------------------------------------------				
 if __name__ == "__main__":
 	rospy.init_node("waypoint_publisher")
 	print('Node : waypoint_publisher started')
