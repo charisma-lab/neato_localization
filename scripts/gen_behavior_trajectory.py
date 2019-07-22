@@ -193,11 +193,11 @@ class BehaviorGenerator:
 				path_to_publish.header = create_header('map')
 				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 				self.waypoint_publisher.publish(path_to_publish)
-				#
+				
 				# goal_to_publish = MoveBaseActionGoal()
 				# goal_to_publish.header = path_to_publish.header
 				# goal_to_publish.goal.target_pose = self.goal_stamped
-				#
+				
 				self.path_to_publish = path_to_publish  # save it
 				# self.goal_publisher.publish(self.goal_to_publish)
 				print("changed goal")
@@ -270,7 +270,7 @@ class BehaviorGenerator:
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 
-			# # Check we need to generate new trajectory, based on goal_change_threshold
+			# Check we need to generate new trajectory, based on goal_change_threshold
 			# goal_change_dist = self.get_change_goal_dist()
 
 			# if abs(goal_change_dist) > self.goal_change_threshold:
@@ -309,11 +309,11 @@ class BehaviorGenerator:
 				path_to_publish.header = create_header('map')
 				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 				self.waypoint_publisher.publish(path_to_publish)
-				#
+				
 				# goal_to_publish = MoveBaseActionGoal()
 				# goal_to_publish.header = path_to_publish.header
 				# goal_to_publish.goal.target_pose = self.goal_stamped
-				#
+				
 				self.path_to_publish = path_to_publish  # save it
 				# self.goal_publisher.publish(self.goal_to_publish)
 				print("changed goal")
@@ -382,11 +382,11 @@ class BehaviorGenerator:
 				path_to_publish.header = create_header('map')
 				path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
 				self.waypoint_publisher.publish(path_to_publish)
-				#
+				
 				# goal_to_publish = MoveBaseActionGoal()
 				# goal_to_publish.header = path_to_publish.header
 				# goal_to_publish.goal.target_pose = self.goal_stamped
-				#
+				
 				self.path_to_publish = path_to_publish  # save it
 				# self.goal_publisher.publish(self.goal_to_publish)
 				print("changed goal")
