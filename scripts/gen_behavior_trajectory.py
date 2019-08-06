@@ -152,23 +152,34 @@ class BehaviorGenerator:
 
     def manipulate_space(space_setting, path)
         '''
+        SPACE is manipulated by altering the amplitude that the path takes 
         takes in the space setting and decides how the path is manipulated to suit this setting
         
-        space_setting:={'DIRECT':1,'INDIRECT':-1} 
+       
+
+        @param space_setting:={'DIRECT':1,'INDIRECT':-1} 
+        @param path is a list of waypoints (something like this)
+        @return path 
+
         '''
         pass
 
     def manipulate_interaction(interaction_setting, path)
         '''
+        INTERACTION is manipulated by altering the end goal of the path 
         takes in the interaction setting and decides how the path is manipulated to suit this setting
-        interaction_setting = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
+       
+        @param interaction_setting = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
+        @param path is a list of waypoints (something like this)
+        @return path 
+
         '''
         pass
 
-    def generate_path(settings, path)
+    def generate_path(laban_settings)
         '''
-        @param settings is a dictionary of the laban efforts created by create_behavior_dict
-        @param path is a path is a path
+        @param laban_settings is a dictionary of the laban efforts created by create_behavior_dict
+        @return path is a list of waypoints (something like this)
         call manipulate_space and manipulate_interaction based on the dictionary of settings   
         '''
         pass
