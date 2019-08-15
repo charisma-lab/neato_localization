@@ -4,6 +4,8 @@
 <launch>
 <node pkg="neato_localization_laban" type="tracking_aruco_markers.py" name="tracking_aruco_markers" output="screen">
 </node>
+<node pkg="neato_localization_laban" type="localizing_tracked_markers.py" name="localizing_tracked_markers" output="screen">
+</node>
 
 </launch>
 

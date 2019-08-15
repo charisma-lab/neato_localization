@@ -13,7 +13,7 @@ import sys, select, termios, tty
 from std_msgs.msg import String
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Vector3
-from neato_localization.msg import NumPoints
+from neato_localization_laban.msg import NumPoints
 
 from std_msgs.msg import UInt16
 from sensor_msgs.msg import Joy

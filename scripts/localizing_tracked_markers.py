@@ -9,7 +9,7 @@ import time, math
 
 from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
-from neato_localization.msg import NumPoints
+from neato_localization_laban.msg import NumPoints
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
