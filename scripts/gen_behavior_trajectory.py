@@ -15,12 +15,13 @@ from std_msgs.msg import Header, Bool
 from tf.transformations import quaternion_from_euler
 import matplotlib.pyplot as plt
 
+'''
 SPACE = {'DIRECT':1,'INDIRECT':-1} 
 INTERACTION = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
 FLOW = {'FREE':1, 'BOUND': -1}
 TIME = {'SUSTAINED':1, 'ABRUPT':-1}
 WEIGHT = {'HEAVY': 1, 'LIGHT': -1}
-
+'''
 def create_behavior_dict(space, interaction, flow, time, weight):
     behavior = {'SPACE': space, 'INTERACTION': interaction, 'FLOW': flow, 'TIME': time, 'WEIGHT': weight}
     return behavior 
@@ -128,17 +129,23 @@ class BehaviorGenerator:
         return heading
 
     def gen_traj_section(self, wavelength, amp, wave_formed):
-        """takes parameters: self, wavelength, amp, wave_formed 
-         and returns an array """
+        """
+        @param self
+        @param wavelength
+        @param amp
+        @param wave_formed 
+        @return section_path which is an array 
+        """
         freq = 1.0 / wavelength
         section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50) 
         # linspace returns evenly spaced numbers over a specified interval 
         omega = 2*np.pi*freq
         section_path = np.array([[L, amp * np.sin(omega * L)] for L in section_path])
+        # Q: What does the above line of code do?
         return section_path
 
-    def gen_traj_section_last(self, wavelength, amp, wave_formed):
-        freq = 1.0 / wavelength
+    def gen_traj_section_last(self, wavelength, amp, wave_formed, freq):
+        # freq = 1.0 / wavelength - taken care of in manipulate time 
         omega = 2 * np.pi * freq
         #section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50)
         section_path = np.linspace(0, wavelength, num=wavelength * 50)
@@ -159,35 +166,122 @@ class BehaviorGenerator:
 
         @param space_setting:={'DIRECT':1,'INDIRECT':-1} 
         @param path is a list of waypoints (something like this)
-        @return path 
 
         '''
-        pass
 
-    def manipulate_interaction(interaction_setting, path)
+        amplitude = space_setting
+
+        return amplitude 
+       
+
+    def manipulate_interaction(interaction_setting)
         '''
         INTERACTION is manipulated by altering the end goal of the path 
         takes in the interaction setting and decides how the path is manipulated to suit this setting
        
         @param interaction_setting = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
-        @param path is a list of waypoints (something like this)
-        @return path 
-
+       
         '''
+        if interaction_setting == 1: 
+            self.last_goal = self.goal
+        else:
+
         pass
 
-    def generate_path(laban_settings)
+    def manipulate_time(time_setting, wavelength)
+        '''
+        TIME is manipulated by changing the frequency of the wave 
+        @param time_setting = 
+        @param path = 
+
+        '''
+        freq = time_setting/wavelength
+        return freq 
+     
+
+    def generate_path(space_in, time_in, interact_in)
         '''
         @param laban_settings is a dictionary of the laban efforts created by create_behavior_dict
         @return path is a list of waypoints (something like this)
         call manipulate_space and manipulate_interaction based on the dictionary of settings   
         '''
-        pass
 
+
+        # first we want to manipulate the interaction variable but only if the goal has changed 
+        if self.check_goal_change() or self.start_goal_flag:
+            # get the interaction setting, either seeking, avoiding or neutral 
+            manipulate_interaction(interact_in)
+
+            x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
+
+            wavelength = dist
+
+            path = []
+
+        # get the space setting 
+
+            space = manipulate_space(space_in) 
+
+        # if this is all we do maybe we can just have it done in here but also whatever 
+
+        # now we have path that has space yay 
+
+        # now we want to add the time and whatever 
+        # then we pass to 
+        # manipulate_time which will do stuff with the frequency yay 
+            time = manipulate_time(time_in, wavelength) 
+        # then we finish up whatever we need to do to make the path work and publish 
+
+           
+
+            path = self.gen_traj_section(wavelength, space*0.5, 0, time)
+            # Define rotation matrix to rotate the whole line
+            rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+                # Q: Does this make an array of tuples of lists
+
+
+            path_rotated = np.zeros([path.shape[0], path.shape[1]])
+            heading = np.zeros([path.shape[0],1])
+
+                # loop simultaneously 
+            for i, point in enumerate(path): 
+                result = np.matmul(rot, point) #matrix product of two arrays 
+                path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
+                    # Now, path is from start point to goal point
+                path_rotated[0] = self.start # TODO: check if this is coming out correctly
+                path_rotated[-1] = self.goal
+
+                # Find heading for each point #TODO: replace this with gen_heading?
+            for i in range(len(path_rotated)-1):
+                dx = path_rotated[i+1, 0] - path_rotated[i, 0]
+                dy = path_rotated[i+1, 1] - path_rotated[i, 1]
+                heading[i] = math.atan2(dy, dx)
+                heading[-1] = heading[-2]
+
+                # Now, populate the Path message #TODO: move to separate function
+                path_to_publish = Path()
+                path_to_publish.header = create_header('map')
+                path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
+                self.waypoint_publisher.publish(path_to_publish)
+                
+                # goal_to_publish = MoveBaseActionGoal()
+                # goal_to_publish.header = path_to_publish.header
+                # goal_to_publish.goal.target_pose = self.goal_stamped
+                
+                self.path_to_publish = path_to_publish  # save it
+                # self.goal_publisher.publish(self.goal_to_publish)
+                print("changed goal")
+                self.start_goal_flag = False
+
+        else:
+            self.waypoint_publisher.publish(self.path_to_publish)
+            print("publishing old path")
+        
+'''
     def gen_trajectory(self, behavior):
         """"Generate the high level path for each of the seven emotions"""
-
         amplitude = self.sine_amplitude
+        
         """<-----------------------HAPPY OR SLEEPY---------------------------->
         Happy and Sleepy have the same high level path, but the lower level controller will
         impart distinguishing behavior. Grumpy has a a different high level path"""
@@ -222,16 +316,19 @@ class BehaviorGenerator:
                             path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
                             wave_formed += (self.happy_section_length + remaining)
                     path = np.concatenate(path, axis=0)
-                # Now we have a path (in x axis)
+                # np.concatenate joins a sequence of arrays along an exisiting axis, we have a path in the x-axis
 
                 # Define rotation matrix to rotate the whole line
                 rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+                # Q: Does this make an array of tuples of lists
+
 
                 path_rotated = np.zeros([path.shape[0], path.shape[1]])
                 heading = np.zeros([path.shape[0],1])
 
-                for i, point in enumerate(path):
-                    result = np.matmul(rot, point)
+                # loop simultaneously 
+                for i, point in enumerate(path): 
+                    result = np.matmul(rot, point) #matrix product of two arrays 
                     path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
                     # Now, path is from start point to goal point
                 path_rotated[0] = self.start # TODO: check if this is coming out correctly
@@ -320,11 +417,12 @@ class BehaviorGenerator:
                 changed_goal = Bool()
                 changed_goal.data = False
                 self.changed_goal_publisher.publish(changed_goal)
-
+'''
 #------------------------------------------------------------------------------------               
 if __name__ == "__main__":
     rospy.init_node("waypoint_publisher")
     print('Node : waypoint_publisher started')
+    '''
     # ask user to input emotion, behavior is set to the emotion 
     # 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy 
     # 5 = doc, 6 = dopey, 7 = bashful 
@@ -367,10 +465,14 @@ if __name__ == "__main__":
         behavior = 8
         CUSTOM = create_behavior_dict(interaction = INTERACTION['NEUTRAL'], space = SPACE['DIRECT'], flow = FLOW['FREE'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
         behavior_dict = CUSTOM
+        '''
+    space_var = input("Enter the setting for SPACE from 0 (direct) to 1 (indirect): ")
+    time_var = input("Enter the setting for TIME from 0 (abrupt) to 1 (sustained): ")
+    interaction_var = input("Enter the setting for INTERACTION: 1) avoiding \t 2) seeking")
     generator = BehaviorGenerator() 
     r = rospy.Rate(20)
     start_time = time.time()
     while not rospy.is_shutdown():
         if time.time() - start_time > 1:
-            generator.gen_trajectory(behavior)
+            generator.generate_path(space_var,time_var,interaction_var)
         r.sleep()
