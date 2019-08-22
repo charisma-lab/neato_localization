@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 '''
-This node will generate the higher level trajectory for different behaviors such as "Happy", Grumpy", and "Sleepy".
+This node will generate the higher level trajectory for robot motion
+using Laban Motion Features
 '''
 
 import rospy
@@ -15,13 +16,6 @@ from std_msgs.msg import Header, Bool
 from tf.transformations import quaternion_from_euler
 import matplotlib.pyplot as plt
 
-'''
-SPACE = {'DIRECT':1,'INDIRECT':-1}
-INTERACTION = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
-FLOW = {'FREE':1, 'BOUND': -1}
-TIME = {'SUSTAINED':1, 'ABRUPT':-1}
-WEIGHT = {'HEAVY': 1, 'LIGHT': -1}
-'''
 def create_behavior_dict(space, interaction, flow, time, weight):
     behavior = {'SPACE': space, 'INTERACTION': interaction, 'FLOW': flow, 'TIME': time, 'WEIGHT': weight}
     return behavior
@@ -134,9 +128,9 @@ class BehaviorGenerator:
         @param wavelength
         @param amp
         @param wave_formed
+        @param freq
         @return section_path which is an array
         """
-        # freq = 1.0 / wavelength
         section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50)
         # linspace returns evenly spaced numbers over a specified interval
         omega = 2*np.pi*freq
@@ -145,7 +139,6 @@ class BehaviorGenerator:
         return section_path
 
     def gen_traj_section_last(self, wavelength, amp, wave_formed, freq):
-        # freq = 1.0 / wavelength - taken care of in manipulate time
         omega = 2 * np.pi * freq
         #section_path = np.linspace(wave_formed, wave_formed+wavelength, num=wavelength*50)
         section_path = np.linspace(0, wavelength, num=wavelength * 50)
@@ -153,6 +146,9 @@ class BehaviorGenerator:
         return section_path
 
     def check_goal_change(self):
+        """Assumption: check_goal_change sees if the goal has moved more than the
+        the goal threshold before it is registered as a change in the person's position
+        and a new path will be generated"""
         goal_change_dist = self.get_change_goal_dist()
         has_changed = (abs(goal_change_dist) > self.goal_change_threshold)
         return has_changed
@@ -162,9 +158,7 @@ class BehaviorGenerator:
         SPACE is manipulated by altering the amplitude that the path takes
         takes in the space setting and decides how the path is manipulated to suit this setting
 
-
-
-        @param space_setting:={'DIRECT':1,'INDIRECT':-1}
+        @param space_setting
         @param path is a list of waypoints (something like this)
 
         '''
@@ -179,11 +173,14 @@ class BehaviorGenerator:
         INTERACTION is manipulated by altering the end goal of the path
         takes in the interaction setting and decides how the path is manipulated to suit this setting
 
-        @param interaction_setting = {'SEEKING':1, 'AVOIDING':-1, 'NEUTRAL': 0}
+        @param interaction_setting
 
         '''
+        self.last_goal = self.goal
         if interaction_setting == 1:
-            self.last_goal = self.goal
+            self.last_goal[0] = 3.0 - self.last_goal[0]
+            self.last_goal[1] = 2.5 - self.last_goal[1]
+
 
 
     def manipulate_time(self, time_setting, wavelength):
@@ -235,7 +232,7 @@ class BehaviorGenerator:
             path = self.gen_traj_section(wavelength, space*0.5, 0, time)
             # Define rotation matrix to rotate the whole line
             rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-                # Q: Does this make an array of tuples of lists
+                # Q: Does this make an array of tuples of lists?
 
 
             path_rotated = np.zeros([path.shape[0], path.shape[1]])
@@ -275,198 +272,13 @@ class BehaviorGenerator:
             self.waypoint_publisher.publish(self.path_to_publish)
             print("publishing old path")
 
-'''
-    def gen_trajectory(self, behavior):
-        """"Generate the high level path for each of the seven emotions"""
-        amplitude = self.sine_amplitude
-
-        """<-----------------------HAPPY OR SLEEPY---------------------------->
-        Happy and Sleepy have the same high level path, but the lower level controller will
-        impart distinguishing behavior. Grumpy has a a different high level path"""
-
-        if behavior == 1 or behavior == 3:
-            # generate sinusoidal path
-            x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
-
-            # # Check we need to generate new trajectory, based on goal_change_threshold
-            # goal_change_dist = self.get_change_goal_dist()
-
-            # if abs(goal_change_dist) > self.goal_change_threshold:
-            if self.check_goal_change() or self.start_goal_flag:
-                self.last_goal = self.goal
-
-                path = []
-
-                if dist < self.happy_section_length:
-                    wavelength = dist
-                    path = self.gen_traj_section(wavelength, amplitude*0.5, 0)  # decrease amplitude by half
-
-                if dist > self.happy_section_length:
-                    remaining = dist  # start with total length and then keep reducing
-                    wave_formed = 0.0   # start with zero, and keep adding
-
-                    while wave_formed != dist: #checks to see if the entire wave has been generated
-                        remaining = remaining - self.happy_section_length
-                        if remaining >=self.happy_section_length:
-                            path.append(self.gen_traj_section(self.happy_section_length, amplitude, wave_formed))  # generate path for 1.5 meters
-                            wave_formed += self.happy_section_length
-                        else:
-                            path.append(self.gen_traj_section_last(self.happy_section_length+remaining, amplitude, wave_formed))
-                            wave_formed += (self.happy_section_length + remaining)
-                    path = np.concatenate(path, axis=0)
-                # np.concatenate joins a sequence of arrays along an exisiting axis, we have a path in the x-axis
-
-                # Define rotation matrix to rotate the whole line
-                rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-                # Q: Does this make an array of tuples of lists
-
-
-                path_rotated = np.zeros([path.shape[0], path.shape[1]])
-                heading = np.zeros([path.shape[0],1])
-
-                # loop simultaneously
-                for i, point in enumerate(path):
-                    result = np.matmul(rot, point) #matrix product of two arrays
-                    path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]
-                    # Now, path is from start point to goal point
-                path_rotated[0] = self.start # TODO: check if this is coming out correctly
-                path_rotated[-1] = self.goal
-
-                # Find heading for each point #TODO: replace this with gen_heading?
-                for i in range(len(path_rotated)-1):
-                    dx = path_rotated[i+1, 0] - path_rotated[i, 0]
-                    dy = path_rotated[i+1, 1] - path_rotated[i, 1]
-                    heading[i] = math.atan2(dy, dx)
-                heading[-1] = heading[-2]
-
-                # Now, populate the Path message #TODO: move to separate function
-                path_to_publish = Path()
-                path_to_publish.header = create_header('map')
-                path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
-                self.waypoint_publisher.publish(path_to_publish)
-
-                # goal_to_publish = MoveBaseActionGoal()
-                # goal_to_publish.header = path_to_publish.header
-                # goal_to_publish.goal.target_pose = self.goal_stamped
-
-                self.path_to_publish = path_to_publish  # save it
-                # self.goal_publisher.publish(self.goal_to_publish)
-                print("changed goal")
-                self.start_goal_flag = False
-
-            else:
-                self.waypoint_publisher.publish(self.path_to_publish)
-                print("publishing old path")
-
-        #<---------------------------------------GRUMPY------------------------------------->
-
-        if behavior == 2: #determine if behavior selected is Grumpy
-            # generate zig-zag, non-smooth path
-            x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
-
-            # Check we need to generate new trajectory, based on goal_change_threshold
-            # goal_change_dist = self.get_change_goal_dist()
-
-            if self.check_goal_change() or self.start_goal_flag:
-                self.last_goal = self.goal
-
-                # Number of intermediate points to visit
-                intermediate_steps = 2*(int(dist) + 1)  # may need to play with this, +1 just
-
-                # Check if all point lie within the boundary
-                flag = True
-                while flag:
-                    # On the vector from start to goal, sample zigzag points
-                    sample_x, sample_y = self.sample_poses(dist, theta, intermediate_steps) # May need to linear interpolate
-                    rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-                    path_rotated = np.zeros([sample_x.shape[0], 2])  # initializing
-
-                    for i in range(len(sample_x)):
-                        # create [x,y] point for rotation
-                        point = np.array([sample_x[i], sample_y[i]])
-                        result = np.matmul(rot, point)
-                        path_rotated[i] = [result[0] + self.start[0], result[1] + self.start[1]]  # offset start position
-
-                    path_rotated[0] = self.start
-                    path_rotated[-1] = self.goal
-
-                    is_bounded = (path_rotated[:,0]>=-10).all() and (path_rotated[:,0]<=10).all() and (path_rotated[:,1]>=-10).all() and (path_rotated[:,1]<=10).all()
-                    if is_bounded:
-                        flag = False
-                        # Now we have a valid "path_rotated"
-                # generate heading to populate pose message
-                heading = self.gen_heading(path_rotated)
-
-                # Now, populate the Path message
-                path_to_publish = Path()
-                path_to_publish.header = create_header('map')
-                path_to_publish.poses = self.populate_path_msg(path_rotated, heading)
-                self.path_to_publish = path_to_publish  # save it
-
-                changed_goal = Bool()
-                changed_goal.data = True
-                #self.waypoint_publisher.publish(path_to_publish)
-                self.waypoint_publisher.publish(self.path_to_publish)
-                self.changed_goal_publisher.publish(changed_goal)
-                self.start_goal_flag = False
-            else:
-                # Publish older path
-                self.waypoint_publisher.publish(self.path_to_publish)
-                changed_goal = Bool()
-                changed_goal.data = False
-                self.changed_goal_publisher.publish(changed_goal)
-'''
 #------------------------------------------------------------------------------------
 if __name__ == "__main__":
     rospy.init_node("waypoint_publisher")
     print('Node : waypoint_publisher started')
-    '''
-    # ask user to input emotion, behavior is set to the emotion
-    # 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy
-    # 5 = doc, 6 = dopey, 7 = bashful
-    key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \t 5: doc \t 6: dopey \t 7: bashful \n')
-    if key_input == 1:
-        behavior = 1
-        #changed time from moderate to sustained
-        HAPPY = create_behavior_dict(interaction = INTERACTION['NEUTRAL'], space = SPACE['DIRECT'], flow = FLOW['FREE'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
-        behavior_dict = HAPPY
-    elif key_input == 2:
-        behavior = 2
-        GRUMPY = create_behavior_dict(interaction = INTERACTION['AVOIDING'], space = SPACE['DIRECT'], flow = FLOW['BOUND'], weight =WEIGHT['HEAVY'], time = TIME['ABRUPT'])
-        behavior_dict = GRUMPY
-    elif key_input == 3:
-        behavior = 3
-        #changed space from moderate to indirect
-        SLEEPY = create_behavior_dict(interaction = INTERACTION['NEUTRAL'], space = SPACE['INDIRECT'], flow = FLOW['FREE'], weight =WEIGHT['HEAVY'], time = TIME['SUSTAINED'])
-        behavior_dict = SLEEPY
-    elif key_input == 4:
-        behavior = 4
-        #TODO: 20% (indirect, abrupt, heavy, bound), 80% (direct, sustained, light, free)
-        SNEEZY = create_behavior_dict(interaction = INTERACTION['NEUTRAL'], space = SPACE['DIRECT'], flow = FLOW['FREE'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
-        behavior_dict = SNEEZY
-    elif key_input == 5:
-        behavior = 5
-        #changed weight from moderate to heavy
-        DOC = create_behavior_dict(interaction = INTERACTION['SEEKING'], space = SPACE['DIRECT'], flow = FLOW['BOUND'], weight =WEIGHT['HEAVY'], time = TIME['SUSTAINED'])
-        behavior_dict = DOC
-    elif key_input == 6:
-        behavior = 6
-        DOPEY = create_behavior_dict(interaction = INTERACTION['SEEKING'], space = SPACE['INDIRECT'], flow = FLOW['FREE'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
-        behavior_dict = DOPEY
-    elif key_input == 7:
-        behavior = 7
-        #TODO: 50% avoiding and 50% seeking
-        #changed weight from moderate to light and time from moderate to sustained, can change this later on
-        BASHFUL = create_behavior_dict(interaction = INTERACTION['AVOIDING'], space = SPACE['INDIRECT'], flow = FLOW['BOUND'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
-        behavior_dict = BASHFUL
-    elif key_input == 8:
-        behavior = 8
-        CUSTOM = create_behavior_dict(interaction = INTERACTION['NEUTRAL'], space = SPACE['DIRECT'], flow = FLOW['FREE'], weight =WEIGHT['LIGHT'], time = TIME['SUSTAINED'])
-        behavior_dict = CUSTOM
-        '''
-    space_var = input("Enter the setting for SPACE from 0 (direct) to 1 (indirect): ")
-    time_var = input("Enter the setting for TIME from 0 (abrupt) to 1 (sustained): ")
-    interaction_var = input("Enter the setting for INTERACTION: 1) avoiding \t 2) seeking")
+    space_var = input("Enter the setting for SPACE from 0 (direct) to 5 (indirect): ")
+    time_var = input("Enter the setting for TIME from 0 (abrupt) to 5 (sustained): ")
+    interaction_var = input("Enter the setting for INTERACTION: 1) avoiding \t 2) seeking ")
     generator = BehaviorGenerator()
     r = rospy.Rate(20)
     start_time = time.time()
