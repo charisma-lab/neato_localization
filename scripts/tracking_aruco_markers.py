@@ -31,7 +31,7 @@ import glob
 # Maximum number of robots in the scene
 MAX_BOTS = 2
 # 0 -> in-built camera, 1 -> external USB webcam
-VIDEO_SOURCE_ID = 1
+VIDEO_SOURCE_ID = 3 ##TODO: This should be parameterized
 WAIT_TIME = 1
 
 

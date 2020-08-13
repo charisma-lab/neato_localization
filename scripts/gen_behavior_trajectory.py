@@ -403,25 +403,25 @@ if __name__ == "__main__":
 	# ask user to input emotion, behavior is set to the emotion 
 	# 1 = happy, 2 = grumpy, 3 = sleepy, 4 = sneezy 
 	# 5 = doc, 6 = dopey, 7 = bashful 
-    key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \t 5: doc \t 6: dopey \t 7: bashful \n')
-    if key_input == 1:
-	    behavior = 1
-    elif key_input == 2:
-	    behavior = 2
-    elif key_input == 3:
-	    behavior = 3
-	elif key_input == 4: 
-		behavior = 4
-    elif key_input == 5: 
-        behavior = 5 
-    elif key_input == 6: 
-     	behavior = 6
-    elif key_input == 7: 
-        behavior = 7
-	generator = BehaviorGenerator() 
-	r = rospy.Rate(20)
-	start_time = time.time()
-	while not rospy.is_shutdown():
-		if time.time() - start_time > 1:
-			generator.gen_trajectory(behavior)
-		r.sleep()
+        key_input = input('Enter my emotion: \n 1: happy \t 2: grumpy \t 3: sleepy \t 4: sneezy \t 5: doc \t 6: dopey \t 7: bashful \n')
+        if key_input == 1:
+            behavior = 1
+        elif key_input == 2:
+            behavior = 2
+        elif key_input == 3:
+            behavior = 3
+        elif key_input == 4: 
+            behavior = 4
+        elif key_input == 5: 
+            behavior = 5 
+        elif key_input == 6: 
+            behavior = 6
+        elif key_input == 7: 
+            behavior = 7
+            generator = BehaviorGenerator() 
+            r = rospy.Rate(20)
+            start_time = time.time()
+            while not rospy.is_shutdown():
+                    if time.time() - start_time > 1:
+                            generator.gen_trajectory(behavior)
+                    r.sleep()
