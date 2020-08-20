@@ -6,18 +6,19 @@ import roslib
 import rospy
 import numpy as np
 import time, math
+from math import *
 
 from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
 from neato_localization.msg import NumPoints
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-
-PIXEL_TO_WORLD_RATIO = 3.50
-DISTANCE_CONSTANT_LONG = 3.50
-DISTANCE_CONSTANT_CORNERS = .21
-MAP_WIDTH = 2.50
-REFERENCE_IDS = [0, 10]
+#UPDATE THIS ACCORDING TO THE PHYSICAL ENVIRONMENT -- meters
+PIXEL_TO_WORLD_RATIO = 3.50 #CALCULATE THIS 
+DISTANCE_CONSTANT_LONG = 3.50 #
+DISTANCE_CONSTANT_CORNERS =  .11 #meters #original.21 #DISTANCE of the corners from inside the marker
+MAP_WIDTH = 1.5 #meters
+REFERENCE_IDS = [0, 5] #this should be changed to whatever marker id marks the border of the world
 
 
 class Marker():

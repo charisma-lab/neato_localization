@@ -31,7 +31,7 @@ import glob
 # Maximum number of robots in the scene
 MAX_BOTS = 2
 # 0 -> in-built camera, 1 -> external USB webcam
-VIDEO_SOURCE_ID = 3 ##TODO: This should be parameterized
+VIDEO_SOURCE_ID = 2 ##TODO: This should be parameterized
 WAIT_TIME = 1
 
 
@@ -69,13 +69,15 @@ class Tracker():
 						tracking_all_markers.publish(marker)
 						if time.time() - self._start_time > 2:
 							if index_number == 1:
-								cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato01_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
+								#display the neato's pose coordinates 
+                                                                cv2.putText(frame, "Neato: " + str(1) + " " + str(self._neato01_pose), (0,64), font, 1, (100,0,200),2,cv2.LINE_AA)
 					except IndexError:
 						pass
 
 		if len(self._detected_markers_in_this_frame[0]) > 0:
 			aruco.drawDetectedMarkers(colored_frame, self._detected_markers_in_this_frame[0], self._detected_markers_in_this_frame[1])
 		
+                cv2.putText(frame, "Press q to quit", (90,100), font, 1, (100,0,200),2,cv2.LINE_AA)
 		cv2.imshow('frame', colored_frame)
 		if cv2.waitKey(WAIT_TIME) & 0xFF == ord('q'):
 			self._cap.release()

@@ -31,7 +31,8 @@ class BehaviorGenerator:
 		self.waypoint_publisher = rospy.Publisher('/neato01/social_global_plan', Path, queue_size=1)
 		self.goal_publisher = rospy.Publisher('/move_base/goal', MoveBaseActionGoal, queue_size=1)
 		self.changed_goal_publisher = rospy.Publisher('/neato01/changed_goal', Bool, queue_size=1)
-		rospy.Subscriber('/neato05/pose', PoseStamped, self.goal_callback, queue_size=1) # Use of service could be more efficient
+                #This is the destination
+		rospy.Subscriber('/neato10/pose', PoseStamped, self.goal_callback, queue_size=1) # Use of service could be more efficient
 		rospy.Subscriber('/neato01/pose', PoseStamped, self.start_callback, queue_size=1)
 		rospy.Subscriber('/obstacle', PoseStamped, self.obstacle_callback, queue_size=1)
 
@@ -58,11 +59,11 @@ class BehaviorGenerator:
 		if self.start_goal_flag:
 			self.last_goal = self.goal
 
-		#print('self.goal : ', self.goal)
+		print('self.goal : ', self.goal)
 
 	def start_callback(self, start_msg):
 		self.start = [start_msg.pose.position.x, start_msg.pose.position.y]
-		#print('self.start : ', self.start)
+		print('self.start : ', self.start)
 
 	def obstacle_callback(self, obstacle_msg):
 		self.obstacle = obstacle_msg
@@ -205,11 +206,11 @@ class BehaviorGenerator:
 
 			else:
 				self.waypoint_publisher.publish(self.path_to_publish)
-				print("publishing old path")
+				#print("publishing old path")
 
 		#<---------------------------------------GRUMPY------------------------------------->
 
-		if behavior == 2: #determine if behavior selected is Grumpy 
+		elif behavior == 2: #determine if behavior selected is Grumpy 
 			# generate zig-zag, non-smooth path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()
 
@@ -266,7 +267,7 @@ class BehaviorGenerator:
 				self.changed_goal_publisher.publish(changed_goal)
 
 	#<-------------------------------------DOPEY------------------------------------------> 
-		if behavior == 6: 
+		elif behavior == 6: 
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 
@@ -321,11 +322,11 @@ class BehaviorGenerator:
 
 			else:
 				self.waypoint_publisher.publish(self.path_to_publish)
-				print("publishing old path")
+				#print("publishing old path")
 
 	#<-------------------------------------DOC------------------------------------------>
 
-		if behavior == 5: 
+		elif behavior == 5: 
 			# generate sinusoidal path
 			x_diff, y_diff, dist, theta = self.get_dist_theta_to_goal()  # this could be one scope higher
 
@@ -394,7 +395,9 @@ class BehaviorGenerator:
 
 			else:
 				self.waypoint_publisher.publish(self.path_to_publish)
-				print("publishing old path")
+				#print("publishing old path")
+                else:
+                        print("Behavior %s is yet to be defined!" % (behavior)) 
 
 #------------------------------------------------------------------------------------				
 if __name__ == "__main__":
