@@ -27,7 +27,7 @@ def publish(start, goal):
 if __name__ == "__main__":
     rospy.init_node("pub_test_goal_start")
     start_pub = rospy.Publisher('/neato01/pose', PoseStamped, queue_size=1)
-    goal_pub = rospy.Publisher('/neato05/pose', PoseStamped, queue_size=1)
+    goal_pub = rospy.Publisher('/neato10/pose', PoseStamped, queue_size=1)
 
     header = create_header('map')
     start_pose = Pose(Point(0.0, 0.0, 0.0), quat_heading(0.0))
