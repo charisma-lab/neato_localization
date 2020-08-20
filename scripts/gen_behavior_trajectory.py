@@ -418,10 +418,12 @@ if __name__ == "__main__":
             behavior = 6
         elif key_input == 7: 
             behavior = 7
-            generator = BehaviorGenerator() 
-            r = rospy.Rate(20)
-            start_time = time.time()
-            while not rospy.is_shutdown():
-                    if time.time() - start_time > 1:
-                            generator.gen_trajectory(behavior)
-                    r.sleep()
+        
+        print("Now going to work on behavior # %s" % behavior)
+        generator = BehaviorGenerator() 
+        r = rospy.Rate(20)
+        start_time = time.time()
+        while not rospy.is_shutdown():
+                if time.time() - start_time > 1:
+                        generator.gen_trajectory(behavior)
+                r.sleep()
